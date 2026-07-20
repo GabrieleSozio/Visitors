@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>Visitors</title>
+  <meta name="description" content="Digest quotidiano su OTA e attrazioni turistiche.">
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230b4cff'/><text x='50' y='72' font-size='64' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>V</text></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="#" aria-label="Visitors">
+        <span class="brand-mark">V</span>
+        <span class="brand-name">Visitors</span>
+      </a>
+      <span class="brand-tag">OTA &amp; attrazioni</span>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <div class="wrap tabs-inner">
+      <button class="tab is-active" data-tab="oggi" role="tab">Oggi</button>
+      <button class="tab" data-tab="ota" role="tab">OTA</button>
+      <button class="tab" data-tab="attrazioni" role="tab">Attrazioni</button>
+      <button class="tab" data-tab="archivio" role="tab">Archivio</button>
+    </div>
+  </nav>
+
+  <main class="wrap" id="main">
+    <!-- OGGI -->
+    <section class="panel is-active" data-panel="oggi">
+      <div id="oggi-content"></div>
+    </section>
+
+    <!-- OTA -->
+    <section class="panel" data-panel="ota">
+      <label class="field-label" for="ota-select">Seleziona OTA</label>
+      <div class="select-wrap">
+        <select id="ota-select"></select>
+      </div>
+      <div id="ota-content"></div>
+    </section>
+
+    <!-- ATTRAZIONI -->
+    <section class="panel" data-panel="attrazioni">
+      <div id="attr-digest"></div>
+      <div class="section-head">
+        <h2>Affluenza del periodo</h2>
+        <p class="note">Curve di stima basate sulla stagionalita nota, non dati ufficiali.</p>
+      </div>
+      <div class="chart-controls" id="attr-controls"></div>
+      <div class="card chart-card">
+        <div class="chart-title">Andamento annuale (indice 0&ndash;100)</div>
+        <div id="line-chart" class="chart"></div>
+      </div>
+      <div class="card chart-card">
+        <div class="chart-title" id="bar-title">Mese corrente</div>
+        <div id="bar-chart" class="chart"></div>
+      </div>
+    </section>
+
+    <!-- ARCHIVIO -->
+    <section class="panel" data-panel="archivio">
+      <label class="field-label" for="search">Cerca in tutti i digest</label>
+      <div class="search-wrap">
+        <input id="search" type="search" placeholder="es. commissioni, ranking, Colosseo" autocomplete="off">
+      </div>
+      <p class="note" id="search-count"></p>
+      <div id="archivio-content"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <span>Visitors</span>
+      <span class="foot-meta" id="foot-meta"></span>
+    </div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>

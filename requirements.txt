@@ -1,5 +1,2 @@
-streamlit>=1.40
 anthropic>=0.116
 PyYAML>=6.0
-pandas>=2.2
-python-dateutil>=2.9
