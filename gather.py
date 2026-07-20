@@ -107,8 +107,18 @@ def call_claude(system: str, user: str, max_uses: int, max_tokens: int = 16000) 
             return "> Il modello ha rifiutato di rispondere per motivi di sicurezza."
         break
 
-    text = "".join(b.text for b in resp.content if b.type == "text")
-    return text.strip()
+    text = "\n".join(b.text for b in resp.content if b.type == "text").strip()
+    return clean_output(text)
+
+
+def clean_output(text: str) -> str:
+    """Rimuove eventuali premesse/narrazione del modello prima del primo heading."""
+    m = re.search(r"(?m)^\s*#{1,6}\s", text)  # heading a inizio riga (caso normale)
+    if not m:
+        m = re.search(r"#{1,6}\s", text)       # heading anche se incollato al preambolo
+    if m:
+        text = text[m.start():].strip()
+    return text
 
 
 def save(path: pathlib.Path, front: dict, body: str) -> None:
@@ -123,6 +133,8 @@ al servizio di un product manager di un'agenzia di tour ed esperienze a Roma
 (vende tour guidati e biglietti per attrazioni in tutta Italia).
 
 Regole:
+- Produci DIRETTAMENTE il digest a partire dal titolo (#). Nessun preambolo,
+  nessuna frase tipo "ho trovato...", nessuna narrazione del tuo processo.
 - Scrivi SEMPRE in italiano, chiaro e sintetico, in Markdown.
 - Riporta solo novita REALI e verificabili tramite ricerca web; cita la fonte con link.
 - NON inventare. Se in un certo periodo non ci sono novita rilevanti, dillo esplicitamente.
