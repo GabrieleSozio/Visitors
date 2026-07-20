@@ -1,0 +1,23 @@
+# Le OTA che segui, in ordine di rotazione settimanale.
+# Ogni settimana l'approfondimento pesante tocca UNA OTA (rotazione automatica
+# in base al numero di settimana ISO). Riordina/aggiungi come preferisci.
+
+otas:
+  - slug: getyourguide
+    name: GetYourGuide
+    notes: "Ranking algoritmo, content score, cancellation policy, Originals"
+  - slug: viator
+    name: Viator
+    notes: "Tripadvisor traffic, badge, commissioni, review collection"
+  - slug: headout
+    name: Headout
+    notes: "Curation model, pricing dinamico, mercati chiave"
+  - slug: tiqets
+    name: Tiqets
+    notes: "Barcode connectivity, museums, last-minute"
+  - slug: klook
+    name: Klook
+    notes: "APAC demand, app-first, promo"
+  - slug: airbnb
+    name: Airbnb Experiences
+    notes: "Rilancio Experiences, Icons, requisiti host"

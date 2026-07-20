@@ -1,0 +1,39 @@
+name: Digest settimanali (approfonditi)
+
+on:
+  schedule:
+    # Lunedi 06:30 UTC: panoramica generale + OTA a rotazione + attrazioni
+    - cron: "30 6 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Panoramica settimanale
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python gather.py --mode weekly-general
+      - name: Approfondimento OTA (rotazione automatica)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python gather.py --mode weekly-ota
+      - name: Approfondimento attrazioni
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python gather.py --mode weekly-attractions
+      - name: Commit dei digest
+        run: |
+          git config user.name "visitors-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add digests/
+          git diff --staged --quiet || git commit -m "Digest settimanali $(date -u +%F)"
+          git push

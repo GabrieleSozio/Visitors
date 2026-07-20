@@ -1,0 +1,39 @@
+# Fonti che l'AI deve privilegiare nelle ricerche.
+# Puoi aggiungere/togliere righe liberamente. Le "priority" alte pesano di piu.
+
+sources:
+  - name: Arival
+    url: arival.travel
+    priority: high
+    focus: "in-destination experiences, tour operator best practices, OTA strategy"
+  - name: Skift
+    url: skift.com
+    priority: high
+    focus: "travel industry news, mergers, distribution trends"
+  - name: PhocusWire
+    url: phocuswire.com
+    priority: high
+    focus: "travel technology, OTA & distribution"
+  - name: WiT (Web in Travel)
+    url: webintravel.com
+    priority: medium
+    focus: "APAC travel distribution, OTA moves"
+  - name: Tnooz
+    url: tnooz.com
+    priority: low
+    focus: "travel tech commentary"
+
+# Blog / centri partner ufficiali delle OTA (novita di prodotto, policy, commissioni)
+ota_official:
+  - name: GetYourGuide Supply / Partner
+    url: supply.getyourguide.com
+  - name: Viator / Tripadvisor Operators
+    url: supplier.viator.com
+  - name: Headout Partners
+    url: headout.com
+  - name: Tiqets Venues
+    url: venues.tiqets.com
+  - name: Klook Merchant
+    url: merchant.klook.com
+  - name: Airbnb Experiences / Icons
+    url: airbnb.com

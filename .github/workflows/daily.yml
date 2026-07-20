@@ -1,0 +1,31 @@
+name: Digest giornaliero (leggero)
+
+on:
+  schedule:
+    # 06:15 UTC ogni giorno (~08:15 ora italiana in estate, 07:15 in inverno)
+    - cron: "15 6 * * *"
+  workflow_dispatch: {}   # permette l'avvio manuale dal tab Actions
+
+permissions:
+  contents: write
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Genera digest giornaliero
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python gather.py --mode daily
+      - name: Commit dei digest
+        run: |
+          git config user.name "visitors-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add digests/
+          git diff --staged --quiet || git commit -m "Digest giornaliero $(date -u +%F)"
+          git push

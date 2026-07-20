@@ -1,0 +1,19 @@
+# Segreti — MAI committare la chiave API
+.env
+.streamlit/secrets.toml
+secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Cache locale
+.cache/
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
