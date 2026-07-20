@@ -19,7 +19,8 @@ Nessun costo tranne l'uso dell'API Claude (stima: ~15-30 €/mese con questa cad
 ## Cadenza
 
 - **Giornaliero (leggero):** solo alert/novità delle ultime 24-48h.
-- **Settimanale (pesante):** panoramica generale + 1 OTA a rotazione + attrazioni.
+- **Settimanale (pesante):** panoramica generale + **tutte le OTA** + attrazioni
+  (con raccolta dell'affluenza attuale da fonti correnti).
 
 ---
 
@@ -73,9 +74,9 @@ python -m streamlit run app.py
 Altri comandi di raccolta:
 ```bash
 python gather.py --mode weekly-general
-python gather.py --mode weekly-ota                  # OTA a rotazione automatica
-python gather.py --mode weekly-ota --target viator  # OTA specifica
-python gather.py --mode weekly-attractions
+python gather.py --mode weekly-all-otas             # tutte le OTA
+python gather.py --mode weekly-ota --target viator  # una OTA specifica
+python gather.py --mode weekly-attractions          # attrazioni + data/affluence.json
 ```
 
 ---
@@ -83,13 +84,16 @@ python gather.py --mode weekly-attractions
 ## Personalizzazione
 
 - **Fonti:** `config/sources.yaml`
-- **OTA e rotazione:** `config/otas.yaml`
-- **Attrazioni e stagionalità:** `config/attractions.yaml`
+- **OTA:** `config/otas.yaml` (ogni settimana vengono aggiornate tutte)
+- **Attrazioni:** `config/attractions.yaml` — per **aggiungere** un'attrazione copia
+  un blocco e cambia `name`/`city`; per **rimuoverla** cancella il suo blocco
+  (lo `slug` è opzionale, si genera dal nome).
 - **Colori/tema:** `.streamlit/config.toml` + blocco CSS in cima ad `app.py`
 - **Orari automazioni:** `.github/workflows/*.yml` (campo `cron`, in UTC)
 - **Freni di costo:** `MAX_SEARCHES` in `gather.py`
 
-## Nota onesta sui grafici di affluenza
-I numeri esatti di visitatori delle attrazioni non sono dati pubblici. I grafici
-mostrano **stime di stagionalità** (pattern alta/bassa stagione), etichettate come
-tali. I valori sono in `config/attractions.yaml` e puoi correggerli con i tuoi dati.
+## Nota onesta sull'affluenza
+I dati di affluenza vengono raccolti settimanalmente da **fonti attuali** (statistiche
+ufficiali, enti del turismo, notizie recenti, disponibilità biglietti) e salvati in
+`data/affluence.json` come livello 0-100 con fonte e data. Dove non esiste un dato
+attuale affidabile, l'attrazione resta a "n/d": non vengono inventati numeri.

@@ -1,11 +1,11 @@
 """
 Visitors - interfaccia Streamlit, personalizzata (bianco + blu elettrico).
 Legge i digest Markdown dal repo e li mostra categorizzati, con archivio,
-ricerca e i grafici di affluenza (stagionalita) delle attrazioni.
+ricerca e l'affluenza attuale delle attrazioni (da data/affluence.json).
 """
 from __future__ import annotations
 
-import datetime as dt
+import json
 import pathlib
 import re
 
@@ -20,13 +20,9 @@ CONFIG = ROOT / "config"
 
 BLUE = "#0b4cff"
 INK = "#0b1220"
-MESI = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
-        "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
-MESI_FULL = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
-             "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"]
 
-st.set_page_config(page_title="Visitors", page_icon=":ticket:",
-                   layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Visitors", layout="centered",
+                   initial_sidebar_state="collapsed")
 
 # --- Identita visiva: CSS custom -------------------------------------------
 st.markdown("""
@@ -89,6 +85,17 @@ def load_yaml(name: str) -> dict:
         return yaml.safe_load(f)
 
 
+@st.cache_data(ttl=120)
+def load_affluence() -> dict | None:
+    p = ROOT / "data" / "affluence.json"
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
 def parse_md(path: pathlib.Path) -> dict:
     raw = path.read_text(encoding="utf-8")
     front, body = {}, raw
@@ -120,31 +127,11 @@ def show_digest(item: dict) -> None:
     st.markdown(f"<div class='vz-body'>\n\n{item['body']}\n\n</div>", unsafe_allow_html=True)
 
 
-# --- Grafici (Altair, blu elettrico) ---------------------------------------
-
-def line_chart(df_sel: pd.DataFrame):
-    long = df_sel.reset_index().melt("mese", var_name="Attrazione", value_name="Indice")
-    order = alt.Sort(MESI)
-    blues = ["#0b4cff", "#1aa7ff", "#6b3cff", "#00b3a4", "#ff7a1a", "#e0397a", "#0b8a3e"]
-    ch = (alt.Chart(long)
-          .mark_line(strokeWidth=2.5, point=False)
-          .encode(
-              x=alt.X("mese:N", sort=MESI, title=None, axis=alt.Axis(labelColor="#9aa3b2")),
-              y=alt.Y("Indice:Q", scale=alt.Scale(domain=[0, 100]), title=None,
-                      axis=alt.Axis(labelColor="#9aa3b2", grid=True, gridColor="#eef1f7")),
-              color=alt.Color("Attrazione:N",
-                              scale=alt.Scale(range=blues),
-                              legend=alt.Legend(orient="bottom", title=None)))
-          .properties(height=280, width="container"))
-    st.altair_chart(ch)
-
-
-def bar_chart(series: pd.Series):
-    df = series.rename_axis("Attrazione").reset_index(name="Indice")
+def affluence_bar(df: pd.DataFrame) -> None:
     ch = (alt.Chart(df)
           .mark_bar(cornerRadius=6, color=BLUE)
           .encode(
-              x=alt.X("Indice:Q", scale=alt.Scale(domain=[0, 100]), title=None),
+              x=alt.X("Livello:Q", scale=alt.Scale(domain=[0, 100]), title=None),
               y=alt.Y("Attrazione:N", sort="-x", title=None,
                       axis=alt.Axis(labelColor=INK, labelLimit=220)))
           .properties(height=32 * len(df) + 10, width="container"))
@@ -189,7 +176,7 @@ with tab_ota:
     sel = st.selectbox("Seleziona OTA", list(names.keys()))
     items = scan(f"ota/{names[sel]}")
     if not items:
-        st.info(f"Ancora nessun approfondimento per {sel}. Sono settimanali, a rotazione.")
+        st.info(f"Ancora nessun approfondimento per {sel}.")
     else:
         show_digest(items[0])
         if len(items) > 1:
@@ -210,22 +197,28 @@ with tab_attr:
     else:
         st.info("Ancora nessun approfondimento attrazioni (settimanale).")
 
-    st.markdown("### Affluenza del periodo")
-    st.caption("Curve di stima basate sulla stagionalita nota, non dati ufficiali.")
-
-    attrs = load_yaml("attractions.yaml")["attractions"]
-    df = pd.DataFrame({a["name"]: a["seasonality"] for a in attrs})
-    df.insert(0, "mese", MESI)
-    df = df.set_index("mese")
-
-    scelte = st.multiselect("Attrazioni da mostrare",
-                            list(df.columns), default=list(df.columns)[:3])
-    if scelte:
-        line_chart(df[scelte])
-
-    mese_idx = dt.date.today().month - 1
-    st.markdown(f"**Indice stimato — {MESI_FULL[mese_idx]}**")
-    bar_chart(df.iloc[mese_idx].sort_values(ascending=False))
+    st.markdown("### Affluenza attuale")
+    aff = load_affluence()
+    if not aff or not aff.get("attrazioni"):
+        st.caption("I dati compariranno dopo il primo aggiornamento settimanale: "
+                   "vengono raccolti da fonti attuali, non da stime storiche.")
+    else:
+        st.caption(f"Livello 0-100 da fonti correnti. Aggiornato: {aff.get('as_of', 'n/d')}.")
+        rows = [a for a in aff["attrazioni"]
+                if isinstance(a.get("livello"), (int, float))]
+        if rows:
+            df = pd.DataFrame([{"Attrazione": a.get("nome") or a.get("slug"),
+                                "Livello": a["livello"]} for a in rows])
+            affluence_bar(df)
+        for a in aff["attrazioni"]:
+            liv = a.get("livello")
+            liv_txt = f"{liv}/100" if isinstance(liv, (int, float)) else "n/d"
+            nome = a.get("nome") or a.get("slug")
+            with st.expander(f"{nome} — {liv_txt} · {a.get('trend', 'n/d')}"):
+                if a.get("nota"):
+                    st.write(a["nota"])
+                if a.get("fonte"):
+                    st.markdown(f"[Fonte]({a['fonte']})")
 
     with st.expander("Aggiungi i tuoi dati reali (vendite/osservazioni)"):
         st.caption("CSV con colonne: data, valore. Su hosting gratuito i dati "

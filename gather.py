@@ -16,9 +16,12 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import os
 import pathlib
+import re
 import sys
+import unicodedata
 
 import yaml
 from anthropic import Anthropic
@@ -29,6 +32,7 @@ MODEL = "claude-sonnet-5"  # scelta dell'utente: rapporto qualita/prezzo miglior
 ROOT = pathlib.Path(__file__).parent
 CONFIG = ROOT / "config"
 DIGESTS = ROOT / "digests"
+DATA = ROOT / "data"
 
 # Freni di costo: numero massimo di ricerche web per esecuzione.
 MAX_SEARCHES = {
@@ -45,6 +49,19 @@ MESI = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno",
 def load_yaml(name: str) -> dict:
     with open(CONFIG / name, encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def slugify(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def load_attractions() -> list[dict]:
+    attrs = load_yaml("attractions.yaml")["attractions"]
+    for a in attrs:
+        if not a.get("slug"):
+            a["slug"] = slugify(a["name"])
+    return attrs
 
 
 def sources_block() -> str:
@@ -159,20 +176,25 @@ Formato:
           "titolo": f"Panoramica settimana {w}/{y}"}, body)
 
 
-def pick_ota(target: str | None) -> dict:
+def run_weekly_all_otas() -> None:
+    """Genera l'approfondimento settimanale per TUTTE le OTA."""
     otas = load_yaml("otas.yaml")["otas"]
-    if target:
-        for o in otas:
-            if o["slug"] == target:
-                return o
-        sys.exit(f"OTA '{target}' non trovata in config/otas.yaml")
-    # Rotazione automatica in base al numero di settimana ISO.
-    w = dt.date.today().isocalendar()[1]
-    return otas[w % len(otas)]
+    for ota in otas:
+        print(f"[..] OTA: {ota['name']}")
+        _weekly_ota(ota)
 
 
 def run_weekly_ota(target: str | None) -> None:
-    ota = pick_ota(target)
+    otas = load_yaml("otas.yaml")["otas"]
+    if not target:
+        sys.exit("--target obbligatorio per weekly-ota (oppure usa --mode weekly-all-otas)")
+    ota = next((o for o in otas if o["slug"] == target), None)
+    if not ota:
+        sys.exit(f"OTA '{target}' non trovata in config/otas.yaml")
+    _weekly_ota(ota)
+
+
+def _weekly_ota(ota: dict) -> None:
     today = dt.date.today()
     y, w, _ = today.isocalendar()
     user = f"""Fai un APPROFONDIMENTO SETTIMANALE dedicato a {ota['name']}
@@ -196,29 +218,67 @@ Se un'area non ha novita, indicalo brevemente ma dai comunque il contesto utile.
           "settimana": f"{y}-W{w:02d}", "titolo": f"{ota['name']} - sett. {w}/{y}"}, body)
 
 
+def extract_affluence(text: str) -> tuple[dict | None, str]:
+    """Estrae il blocco ```json ... ``` finale con i dati di affluenza e lo toglie dal testo."""
+    m = None
+    for m in re.finditer(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL):
+        pass  # tiene l'ultimo blocco json
+    if not m:
+        return None, text
+    try:
+        data = json.loads(m.group(1))
+    except json.JSONDecodeError:
+        return None, text
+    cleaned = (text[:m.start()] + text[m.end():]).strip()
+    return data, cleaned
+
+
 def run_weekly_attractions() -> None:
     today = dt.date.today()
     y, w, _ = today.isocalendar()
     mese = MESI[today.month - 1]
-    attrs = load_yaml("attractions.yaml")["attractions"]
-    elenco = ", ".join(a["name"] for a in attrs)
+    attrs = load_attractions()
+    elenco = "\n".join(f"- {a['name']} ({a.get('city','')}) [slug: {a['slug']}]" for a in attrs)
     user = f"""Fai un APPROFONDIMENTO SETTIMANALE sulle ATTRAZIONI italiane che seguiamo
-(settimana {w}/{y}, periodo: {mese}). Attrazioni: {elenco}.
+(settimana {w}/{y}). Attrazioni:
+{elenco}
 
-Cerca cambiamenti REALI: nuove regole d'ingresso, aumenti prezzi, chiusure/aperture,
-scioperi, cambi di biglietteria/rivenditori ufficiali, novita per i partner
-(tour operator/rivenditori autorizzati), tetti di capienza, prenotazioni obbligatorie.
+PARTE 1 - Cambiamenti (ricerca web, solo fatti verificabili con fonte):
+nuove regole d'ingresso, aumenti prezzi, chiusure/aperture, scioperi, cambi di
+biglietteria/rivenditori ufficiali, novita per i partner (tour operator/rivenditori
+autorizzati), tetti di capienza, prenotazioni obbligatorie.
 
-Formato:
+PARTE 2 - Affluenza ATTUALE da fonti affidabili e recenti (statistiche ufficiali,
+enti del turismo, notizie recenti, disponibilita/sold-out dei biglietti). NON usare
+medie storiche di stagionalita: cerca il dato piu attuale disponibile. Se per
+un'attrazione non trovi un dato attuale affidabile, lascia il livello a null (non
+inventare).
+
+Formato del testo:
 # Attrazioni Italia - Settimana {w}/{y}
 ## Cambiamenti generali (per attrazione)
 ## Novita per i partner / rivenditori autorizzati
-## Note sull'affluenza del periodo ({mese})
-(commento qualitativo su code, sold-out, afflussi record trovati nelle fonti.
-I grafici quantitativi nell'app sono STIME di stagionalita, non dati ufficiali.)
-Se un'attrazione non ha novita, indicalo.
+## Affluenza attuale (con fonte e data del dato)
+
+Alla FINE, dopo il testo, aggiungi UN SOLO blocco ```json con questa struttura esatta
+(livello = indice 0-100 dell'affluenza attuale stimata dalle fonti trovate; trend uno
+tra "in aumento"/"stabile"/"in calo"/"n/d"):
+```json
+{{"as_of": "{today.isoformat()}", "attrazioni": [
+  {{"slug": "colosseo", "nome": "Colosseo & Foro Romano", "livello": 90, "trend": "in aumento", "nota": "breve motivazione dal dato attuale", "fonte": "https://..."}}
+]}}
+```
+Includi nel json una voce per OGNI attrazione dell'elenco (livello null se dato non disponibile).
 """
     body = call_claude(BASE_SYSTEM, user, MAX_SEARCHES["weekly-attractions"])
+    aff, body = extract_affluence(body)
+    if aff:
+        DATA.mkdir(parents=True, exist_ok=True)
+        (DATA / "affluence.json").write_text(
+            json.dumps(aff, ensure_ascii=False), encoding="utf-8")
+        print("[ok] scritto data/affluence.json")
+    else:
+        print("[!] nessun blocco affluenza valido trovato")
     save(DIGESTS / "attractions" / f"{y}-W{w:02d}.md",
          {"tipo": "attrazioni-settimanale", "settimana": f"{y}-W{w:02d}",
           "titolo": f"Attrazioni Italia - sett. {w}/{y}"}, body)
@@ -227,7 +287,8 @@ Se un'attrazione non ha novita, indicalo.
 def main() -> None:
     p = argparse.ArgumentParser(description="Visitors - raccolta dati via Claude")
     p.add_argument("--mode", required=True,
-                   choices=["daily", "weekly-general", "weekly-ota", "weekly-attractions"])
+                   choices=["daily", "weekly-general", "weekly-all-otas",
+                            "weekly-ota", "weekly-attractions"])
     p.add_argument("--target", default=None, help="slug OTA specifica (solo weekly-ota)")
     args = p.parse_args()
 
@@ -238,6 +299,8 @@ def main() -> None:
         run_daily()
     elif args.mode == "weekly-general":
         run_weekly_general()
+    elif args.mode == "weekly-all-otas":
+        run_weekly_all_otas()
     elif args.mode == "weekly-ota":
         run_weekly_ota(args.target)
     elif args.mode == "weekly-attractions":

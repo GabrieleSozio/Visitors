@@ -1,35 +1,23 @@
-# Attrazioni italiane monitorate (cambiamenti generali + per partner) e
-# indice di stagionalita dell'affluenza (0-100 per ogni mese, STIMA basata
-# su pattern noti alta/bassa stagione). Modifica i valori quando hai dati tuoi.
+# Attrazioni italiane monitorate.
 #
-# months = [Gen, Feb, Mar, Apr, Mag, Giu, Lug, Ago, Set, Ott, Nov, Dic]
+# COME AGGIUNGERNE UNA: copia un blocco qui sotto e cambia "name" e "city".
+# COME RIMUOVERNE UNA:  cancella il suo blocco.
+# Lo "slug" e' opzionale: se lo ometti viene generato dal nome.
+#
+# I dati di affluenza NON si mettono qui: vengono raccolti da fonti attuali
+# dallo script settimanale (gather.py --mode weekly-attractions) e salvati in
+# data/affluence.json.
 
 attractions:
-  - slug: colosseo
-    name: Colosseo & Foro Romano
+  - name: Colosseo & Foro Romano
     city: Roma
-    seasonality: [45, 48, 62, 82, 90, 95, 98, 96, 88, 78, 55, 60]
-  - slug: vaticano
-    name: Musei Vaticani & Cappella Sistina
+  - name: Musei Vaticani & Cappella Sistina
     city: Roma
-    seasonality: [50, 52, 65, 85, 92, 96, 99, 97, 90, 80, 58, 68]
-  - slug: galleria-borghese
-    name: Galleria Borghese
+  - name: Galleria Borghese
     city: Roma
-    seasonality: [40, 42, 55, 72, 80, 85, 82, 78, 80, 72, 50, 55]
-  - slug: cupola-brunelleschi
-    name: Cupola del Brunelleschi (Duomo Firenze)
+  - name: Cupola del Brunelleschi (Duomo Firenze)
     city: Firenze
-    seasonality: [42, 45, 60, 80, 88, 92, 95, 93, 85, 75, 52, 55]
-  - slug: uffizi
-    name: Galleria degli Uffizi
+  - name: Galleria degli Uffizi
     city: Firenze
-    seasonality: [48, 50, 62, 82, 88, 90, 92, 90, 86, 76, 55, 60]
-  - slug: doge-venezia
-    name: Palazzo Ducale
+  - name: Palazzo Ducale
     city: Venezia
-    seasonality: [45, 55, 65, 80, 88, 92, 95, 94, 88, 78, 58, 62]
-  - slug: ultima-cena
-    name: Cenacolo (Ultima Cena)
-    city: Milano
-    seasonality: [55, 58, 68, 82, 88, 90, 88, 82, 88, 80, 62, 65]

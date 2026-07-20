@@ -1,0 +1,8 @@
+{"as_of": "2026-07-20 (esempio)", "attrazioni": [
+  {"slug": "colosseo", "nome": "Colosseo & Foro Romano", "livello": 92, "trend": "in aumento", "nota": "Esempio. Qui comparira il livello reale ricavato da fonti attuali, con la fonte.", "fonte": "https://www.arival.travel"},
+  {"slug": "musei-vaticani-cappella-sistina", "nome": "Musei Vaticani & Cappella Sistina", "livello": 95, "trend": "in aumento", "nota": "Esempio.", "fonte": "https://www.arival.travel"},
+  {"slug": "galleria-borghese", "nome": "Galleria Borghese", "livello": 78, "trend": "stabile", "nota": "Esempio.", "fonte": "https://www.arival.travel"},
+  {"slug": "cupola-del-brunelleschi-duomo-firenze", "nome": "Cupola del Brunelleschi (Duomo Firenze)", "livello": 88, "trend": "in aumento", "nota": "Esempio.", "fonte": "https://www.arival.travel"},
+  {"slug": "galleria-degli-uffizi", "nome": "Galleria degli Uffizi", "livello": 85, "trend": "stabile", "nota": "Esempio.", "fonte": "https://www.arival.travel"},
+  {"slug": "palazzo-ducale", "nome": "Palazzo Ducale", "livello": null, "trend": "n/d", "nota": "Esempio di dato non disponibile: nessuna fonte attuale affidabile trovata.", "fonte": ""}
+]}
