@@ -1,21 +1,18 @@
 # Visitors
 
-Web app personale per il product management su OTA e attrazioni turistiche.
+App personale per il product management su OTA e attrazioni turistiche.
 Raccoglie automaticamente le novità dalle fonti più affidabili del settore
 (Arival, Skift, PhocusWire, canali ufficiali OTA…) e le organizza in digest
 consultabili — generali giornalieri e approfondimenti settimanali per OTA e attrazioni.
 
-Interfaccia **custom** (HTML/CSS/JS, bianco + blu elettrico), niente framework
-esterni, veloce e mobile-first.
+Interfaccia **Streamlit personalizzata** (bianco + blu elettrico, mobile-first).
 
 ## Come funziona (architettura)
 
 - **GitHub Actions** (scheduler gratuito) esegue `gather.py` a orari fissi.
 - **`gather.py`** chiama **Claude Sonnet** con il tool **Web Search** e salva i
   digest in Markdown nella cartella `digests/` (versionati in git).
-- **`build_index.py`** impacchetta digest + config in `data/index.json`
-  (Markdown già convertito in HTML). È l'unico file letto dal sito.
-- **`index.html` + `assets/`** è il sito statico che legge `data/index.json`.
+- **`app.py`** (Streamlit) legge i digest e li mostra, con tema custom.
 
 Nessun costo tranne l'uso dell'API Claude (stima: ~15-30 €/mese con questa cadenza).
 
@@ -23,22 +20,6 @@ Nessun costo tranne l'uso dell'API Claude (stima: ~15-30 €/mese con questa cad
 
 - **Giornaliero (leggero):** solo alert/novità delle ultime 24-48h.
 - **Settimanale (pesante):** panoramica generale + 1 OTA a rotazione + attrazioni.
-
----
-
-## Struttura
-
-```
-index.html            sito (single page)
-assets/style.css      grafica (bianco + blu elettrico)
-assets/app.js         logica: tab, selettori, grafici SVG, ricerca
-gather.py             raccolta dati via Claude + Web Search
-build_index.py        genera data/index.json dai digest
-data/index.json       dati letti dal sito (generato)
-digests/              digest in Markdown
-config/               fonti, OTA, attrazioni
-.github/workflows/    automazioni giornaliera e settimanale
-```
 
 ---
 
@@ -56,20 +37,19 @@ Repository → **Settings → Secrets and variables → Actions → New reposito
 
 Poi tab **Actions** → "Digest giornaliero" → **Run workflow** per un primo test.
 
-### 3. Pubblica il sito su Cloudflare Pages (gratis, anche con repo privato)
-1. Crea un account su **dash.cloudflare.com** → sezione **Workers & Pages**.
-2. **Create → Pages → Connect to Git** → autorizza GitHub → scegli `Visitors`.
-3. Impostazioni build:
-   - **Framework preset:** `None`
-   - **Build command:** *(lascia vuoto)*
-   - **Build output directory:** `/`
-4. **Save and Deploy.** Otterrai un URL tipo `https://visitors.pages.dev`.
+### 3. Pubblica l'app su Streamlit Community Cloud (gratis)
+Il repo è pubblico, quindi il deploy è immediato:
+1. Vai su **share.streamlit.io** → **Sign in with GitHub** → autorizza.
+2. **Create app** → **Deploy a public app from GitHub**.
+3. Impostazioni:
+   - **Repository:** `GabrieleSozio/Visitors`
+   - **Branch:** `main`
+   - **Main file path:** `app.py`
+4. **Deploy.** Ottieni un URL tipo `https://visitors.streamlit.app`.
 
-Ad ogni push (anche i commit automatici dei workflow) Cloudflare **ricostruisce
-da solo** il sito, quindi i nuovi digest compaiono senza interventi.
-
-> Alternativa GitHub Pages: funziona ma su repo **privati** richiede un piano a
-> pagamento. Con Cloudflare Pages il repo resta privato e gratis.
+L'app non usa la chiave API (legge solo i digest già nel repo), quindi non serve
+inserire secret su Streamlit. Quando i workflow generano nuovi digest, l'app li
+rilegge automaticamente (o usa "Reboot app" dal menu per forzare).
 
 ### 4. Usala dallo smartphone
 Apri l'URL → menu del browser → **Aggiungi a schermata Home**.
@@ -86,10 +66,8 @@ pip install -r requirements.txt
 #   bash:        export ANTHROPIC_API_KEY=sk-ant-...
 python gather.py --mode daily
 
-# rigenera l'indice e avvia il sito in locale
-python build_index.py
-python -m http.server 8600
-# apri http://127.0.0.1:8600
+# avvia l'interfaccia
+python -m streamlit run app.py
 ```
 
 Altri comandi di raccolta:
@@ -107,7 +85,7 @@ python gather.py --mode weekly-attractions
 - **Fonti:** `config/sources.yaml`
 - **OTA e rotazione:** `config/otas.yaml`
 - **Attrazioni e stagionalità:** `config/attractions.yaml`
-- **Colori/grafica:** `assets/style.css` (variabili `--blue`, `--ink`… in cima)
+- **Colori/tema:** `.streamlit/config.toml` + blocco CSS in cima ad `app.py`
 - **Orari automazioni:** `.github/workflows/*.yml` (campo `cron`, in UTC)
 - **Freni di costo:** `MAX_SEARCHES` in `gather.py`
 
