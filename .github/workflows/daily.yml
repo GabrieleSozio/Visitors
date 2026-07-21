@@ -70,7 +70,20 @@ jobs:
             REGOLE: tutto in italiano, Markdown, niente emoji. Il corpo deve iniziare
             DIRETTAMENTE con "# ", nessun preambolo ne narrazione del tuo processo.
             Ordina per rilevanza pratica (ranking, commissioni, policy, contenuti,
-            algoritmi, connettivita, domanda di mercato). Scrivi SOLO quel file, poi termina.
+            algoritmi, connettivita, domanda di mercato).
+
+            IMPORTANTISSIMO: devi CREARE il file su disco usando lo strumento Write, nel
+            percorso esatto digests/general/${{ steps.d.outputs.today }}.md. NON limitarti a
+            mostrare il contenuto nella risposta: se il file non viene creato su disco il
+            lavoro e' inutile. Dopo aver creato il file, termina.
+
+      - name: Verifica digest creato
+        run: |
+          f="digests/general/${{ steps.d.outputs.today }}.md"
+          if [ ! -f "$f" ]; then
+            echo "ERRORE: $f non e' stato creato da Claude."; exit 1
+          fi
+          echo "OK: creato $f"
 
       - name: Commit e push
         run: |

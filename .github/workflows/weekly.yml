@@ -104,7 +104,22 @@ jobs:
               {"slug": "colosseo-foro-romano", "nome": "Colosseo & Foro Romano", "livello": 90, "trend": "in aumento", "nota": "motivazione dal dato attuale", "fonte": "https://..."}
             ]}
 
-            Scrivi tutti i file indicati, poi termina.
+            IMPORTANTISSIMO: devi CREARE ogni file su disco usando lo strumento Write, nei
+            percorsi esatti indicati (compresi i file di TUTTE le OTA e data/affluence.json).
+            NON limitarti a mostrare il contenuto nella risposta: se i file non vengono creati
+            su disco il lavoro e' inutile. Scrivi tutti i file indicati, poi termina.
+
+      - name: Verifica digest creati
+        run: |
+          miss=0
+          for f in "digests/general-weekly/${{ steps.d.outputs.week }}.md" "digests/attractions/${{ steps.d.outputs.week }}.md" "data/affluence.json"; do
+            [ -f "$f" ] || { echo "MANCANTE: $f"; miss=1; }
+          done
+          n=$(ls digests/ota/*/${{ steps.d.outputs.week }}.md 2>/dev/null | wc -l)
+          echo "File OTA creati per la settimana: $n"
+          [ "$n" -ge 1 ] || { echo "MANCANTI: nessun file OTA"; miss=1; }
+          [ "$miss" = "0" ] || { echo "Alcuni file non sono stati creati"; exit 1; }
+          echo "OK: file settimanali presenti"
 
       - name: Commit e push
         run: |
