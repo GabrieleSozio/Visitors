@@ -1,9 +1,9 @@
-name: Digest settimanali (approfonditi)
+name: Digest settimanali (abbonamento)
 
 on:
   schedule:
-    # Lunedi 06:30 UTC: panoramica generale + OTA a rotazione + attrazioni
-    - cron: "30 6 * * 1"
+    # Lunedi 04:40 UTC (~06:40 ora italiana in estate)
+    - cron: "40 4 * * 1"
   workflow_dispatch: {}
 
 permissions:
@@ -14,26 +14,101 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Calcola settimana
+        id: d
+        run: |
+          echo "today=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+          echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+          echo "ww=$(date -u +%V)" >> "$GITHUB_OUTPUT"
+          echo "yyyy=$(date -u +%G)" >> "$GITHUB_OUTPUT"
+
+      - name: Genera digest settimanali (Claude Code, abbonamento)
+        uses: anthropics/claude-code-base-action@beta
         with:
-          python-version: "3.11"
-      - run: pip install -r requirements.txt
-      - name: Panoramica settimanale
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python gather.py --mode weekly-general
-      - name: Approfondimento di tutte le OTA
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python gather.py --mode weekly-all-otas
-      - name: Approfondimento attrazioni + affluenza
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python gather.py --mode weekly-attractions
-      - name: Commit dei digest
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_tools: "WebSearch,WebFetch,Read,Write,Edit,Glob,Grep"
+          max_turns: "45"
+          prompt: |
+            Sei un analista senior di distribuzione turistica e OTA, al servizio di un
+            product manager di un'agenzia di tour ed esperienze a Roma. Sei gia dentro
+            la cartella del repository "Visitors".
+
+            OBIETTIVO: generare i DIGEST SETTIMANALI APPROFONDITI di questa settimana e
+            SCRIVERE i file. NON usare git: al commit e push ci pensa il workflow.
+            Settimana corrente: ${{ steps.d.outputs.week }} (numero ${{ steps.d.outputs.ww }}, anno ${{ steps.d.outputs.yyyy }}). Data odierna: ${{ steps.d.outputs.today }}.
+
+            PREPARAZIONE: leggi config/sources.yaml (fonti da privilegiare),
+            config/otas.yaml (elenco OTA, ognuna con "slug" e "notes") e
+            config/attractions.yaml (attrazioni con name/city).
+
+            REGOLE (per tutti i file): italiano, Markdown, sintetico, niente emoji. Il
+            corpo di ogni file inizia DIRETTAMENTE con "# ", nessun preambolo ne narrazione.
+            Solo fatti reali e verificabili con WebSearch, ogni punto con [fonte](url). NON
+            inventare; se un'area non ha novita, dillo. Ricerche mirate e contenute.
+
+            PARTE 1 - PANORAMICA GENERALE
+            Cerca i trend piu importanti della settimana. Scrivi
+            digests/general-weekly/${{ steps.d.outputs.week }}.md:
+            ---
+            tipo: generale-settimanale
+            settimana: ${{ steps.d.outputs.week }}
+            titolo: Panoramica settimana ${{ steps.d.outputs.ww }}/${{ steps.d.outputs.yyyy }}
+            ---
+            # Panoramica settimanale - Settimana ${{ steps.d.outputs.ww }}/${{ steps.d.outputs.yyyy }}
+            ## Temi principali (3-5, con analisi)
+            ## Movimenti delle OTA
+            ## Cosa significa per la nostra agenzia
+
+            PARTE 2 - TUTTE LE OTA
+            Per OGNI OTA in config/otas.yaml, usando il suo "slug" e le sue "notes", scrivi
+            digests/ota/<slug>/${{ steps.d.outputs.week }}.md:
+            ---
+            tipo: ota-settimanale
+            ota: <Nome OTA>
+            slug: <slug>
+            settimana: ${{ steps.d.outputs.week }}
+            titolo: <Nome OTA> - sett. ${{ steps.d.outputs.ww }}/${{ steps.d.outputs.yyyy }}
+            ---
+            # <Nome OTA> - Approfondimento settimana ${{ steps.d.outputs.ww }}/${{ steps.d.outputs.yyyy }}
+            ## Novita di prodotto / policy
+            ## Ranking & visibilita
+            ## Commissioni & condizioni economiche
+            ## Best practice operative per il product manager
+            ## Azioni consigliate questa settimana
+
+            PARTE 3 - ATTRAZIONI + AFFLUENZA
+            Per le attrazioni in config/attractions.yaml cerca: (a) cambiamenti reali
+            (regole d'ingresso, prezzi, chiusure/aperture, scioperi, biglietteria/rivenditori
+            ufficiali, novita per i partner, capienza, prenotazioni obbligatorie); (b)
+            l'AFFLUENZA ATTUALE da fonti affidabili recenti (statistiche ufficiali, enti del
+            turismo, notizie recenti, disponibilita/sold-out biglietti). NON usare medie
+            storiche: cerca il dato piu attuale. Se non c'e un dato attuale affidabile, livello null.
+            Scrivi digests/attractions/${{ steps.d.outputs.week }}.md:
+            ---
+            tipo: attrazioni-settimanale
+            settimana: ${{ steps.d.outputs.week }}
+            titolo: Attrazioni Italia - sett. ${{ steps.d.outputs.ww }}/${{ steps.d.outputs.yyyy }}
+            ---
+            # Attrazioni Italia - Settimana ${{ steps.d.outputs.ww }}/${{ steps.d.outputs.yyyy }}
+            ## Cambiamenti generali (per attrazione)
+            ## Novita per i partner / rivenditori autorizzati
+            ## Affluenza attuale (con fonte e data del dato)
+
+            Inoltre scrivi/sovrascrivi data/affluence.json (JSON valido, nessun testo fuori
+            dalle graffe): una voce per OGNI attrazione; "livello" = indice 0-100 attuale
+            (null se non disponibile); "trend" tra "in aumento"/"stabile"/"in calo"/"n/d";
+            "slug" minuscolo senza accenti con trattini al posto di spazi/punteggiatura:
+            {"as_of": "${{ steps.d.outputs.today }}", "attrazioni": [
+              {"slug": "colosseo-foro-romano", "nome": "Colosseo & Foro Romano", "livello": 90, "trend": "in aumento", "nota": "motivazione dal dato attuale", "fonte": "https://..."}
+            ]}
+
+            Scrivi tutti i file indicati, poi termina.
+
+      - name: Commit e push
         run: |
           git config user.name "visitors-bot"
           git config user.email "bot@users.noreply.github.com"
           git add digests/ data/
-          git diff --staged --quiet || git commit -m "Digest settimanali $(date -u +%F)"
+          git diff --staged --quiet || git commit -m "Digest settimanali ${{ steps.d.outputs.today }}"
           git push

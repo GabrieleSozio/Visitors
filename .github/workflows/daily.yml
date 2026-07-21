@@ -1,10 +1,10 @@
-name: Digest giornaliero (leggero)
+name: Digest giornaliero (abbonamento)
 
 on:
   schedule:
-    # 06:15 UTC ogni giorno (~08:15 ora italiana in estate, 07:15 in inverno)
-    - cron: "15 6 * * *"
-  workflow_dispatch: {}   # permette l'avvio manuale dal tab Actions
+    # 05:17 UTC (~07:17 ora italiana in estate)
+    - cron: "17 5 * * *"
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -14,18 +14,67 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Calcola data
+        id: d
+        run: |
+          echo "today=$(date -u +%F)" >> "$GITHUB_OUTPUT"
+          echo "today_it=$(date -u +%d/%m/%Y)" >> "$GITHUB_OUTPUT"
+
+      - name: Genera digest giornaliero (Claude Code, abbonamento)
+        uses: anthropics/claude-code-base-action@beta
         with:
-          python-version: "3.11"
-      - run: pip install -r requirements.txt
-      - name: Genera digest giornaliero
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: python gather.py --mode daily
-      - name: Commit dei digest
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_tools: "WebSearch,WebFetch,Read,Write,Edit,Glob,Grep"
+          max_turns: "20"
+          prompt: |
+            Sei un analista senior di distribuzione turistica e OTA, al servizio di un
+            product manager di un'agenzia di tour ed esperienze a Roma. Sei gia dentro
+            la cartella del repository "Visitors".
+
+            OBIETTIVO: generare il DIGEST GIORNALIERO LEGGERO di oggi e SCRIVERE il file.
+            NON usare git: al commit e push ci pensa il workflow dopo di te.
+
+            Data di oggi: ${{ steps.d.outputs.today }} (formato italiano ${{ steps.d.outputs.today_it }}).
+
+            PASSI:
+            1. Leggi config/sources.yaml per sapere quali fonti privilegiare (Arival,
+               Skift, PhocusWire, WiT e i canali ufficiali delle OTA).
+            2. Con WebSearch trova SOLO le novita reali e verificabili delle ultime 24-48
+               ore nel settore in-destination / OTA / tour & activity. Poche ricerche
+               mirate (max ~6). Cita ogni novita con [fonte](url). NON inventare: se non
+               ci sono novita significative, scrivilo esplicitamente in una riga.
+            3. Scrivi il file digests/general/${{ steps.d.outputs.today }}.md con ESATTAMENTE
+               questa struttura (frontmatter incluso):
+
+            ---
+            tipo: generale-giornaliero
+            data: ${{ steps.d.outputs.today }}
+            titolo: Alert del ${{ steps.d.outputs.today_it }}
+            ---
+
+            # Digest Generale - ${{ steps.d.outputs.today_it }}
+
+            ## Alert del giorno
+
+            - **Titolo in grassetto.** 1-2 frasi: cosa e cambiato, perche conta per la
+              nostra agenzia, azione consigliata se c'e. [fonte](url)
+
+            (da 3 a 8 bullet; se non ci sono novita, una sola riga che lo dice)
+
+            ## Da tenere d'occhio
+
+            - Temi che potrebbero evolvere nei prossimi giorni.
+
+            REGOLE: tutto in italiano, Markdown, niente emoji. Il corpo deve iniziare
+            DIRETTAMENTE con "# ", nessun preambolo ne narrazione del tuo processo.
+            Ordina per rilevanza pratica (ranking, commissioni, policy, contenuti,
+            algoritmi, connettivita, domanda di mercato). Scrivi SOLO quel file, poi termina.
+
+      - name: Commit e push
         run: |
           git config user.name "visitors-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add digests/
-          git diff --staged --quiet || git commit -m "Digest giornaliero $(date -u +%F)"
+          git add digests/ data/ 2>/dev/null || git add digests/
+          git diff --staged --quiet || git commit -m "Digest giornaliero ${{ steps.d.outputs.today }}"
           git push
